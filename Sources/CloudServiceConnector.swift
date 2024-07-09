@@ -220,7 +220,7 @@ public class BoxConnector: CloudServiceConnector {
 public class DropboxConnector: CloudServiceConnector {
     
     public override var authorizeUrl: String {
-        return "https://www.dropbox.com/oauth2/authorize?token_access_type=offline"
+        return "https://www.dropbox.com/oauth2/authorize"
     }
     
     public override var accessTokenUrl: String {

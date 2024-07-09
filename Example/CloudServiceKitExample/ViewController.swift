@@ -8,6 +8,7 @@
 import UIKit
 import CloudServiceKit
 import OAuthSwift
+import WebKit
 
 class ViewController: UIViewController {
 
@@ -36,6 +37,8 @@ class ViewController: UIViewController {
     
     private var connector: CloudServiceConnector?
     
+    private lazy var webview = WKWebView()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
@@ -55,22 +58,37 @@ class ViewController: UIViewController {
                 // fetch current user info to save account
                 let credential = URLCredential(user: "user", password: token.credential.oauthToken, persistence: .permanent)
                 let provider = self.provider(for: drive, credential: credential)
-                provider.getCurrentUserInfo { [weak self] userResult in
-                    guard let self = self else { return }
-                    switch userResult {
-                    case .success(let user):
-                        let account = CloudAccount(type: drive,
-                                                   username: user.username,
-                                                   oauthToken: token.credential.oauthToken)
-                        account.refreshToken = token.credential.oauthRefreshToken
-                        CloudAccountManager.shared.upsert(account)
-                        
-                        self.applyInitialSnapshot()
-                    case .failure(let error):
-                        print(error)
+                if drive == .aliyunDrive,
+                   let provider = provider as? AliyunDriveServiceProvider
+                {
+                    provider.getDriveInfo(completion: { result in
+                        switch result {
+                        case .success:
+                            break
+                        case .failure(let error):
+                            print(error)
+                        }
+                        let vc = DriveBrowserViewController(provider: provider, directory: provider.rootItem)
+                        self.navigationController?.pushViewController(vc, animated: true)
+                    })
+                } else {
+                    provider.getCurrentUserInfo { [weak self] userResult in
+                        guard let self = self else { return }
+                        switch userResult {
+                        case .success(let user):
+                            let account = CloudAccount(type: drive,
+                                                       username: user.username,
+                                                       oauthToken: token.credential.oauthToken)
+                            account.refreshToken = token.credential.oauthRefreshToken
+                            CloudAccountManager.shared.upsert(account)
+                            
+                            self.applyInitialSnapshot()
+                        case .failure(let error):
+                            print(error)
+                        }
+                        let vc = DriveBrowserViewController(provider: provider, directory: provider.rootItem)
+                        self.navigationController?.pushViewController(vc, animated: true)
                     }
-                    let vc = DriveBrowserViewController(provider: provider, directory: provider.rootItem)
-                    self.navigationController?.pushViewController(vc, animated: true)
                 }
             case .failure(let error):
                 print(error)
@@ -98,7 +116,7 @@ class ViewController: UIViewController {
         case .dropbox:
             assert(CloudConfiguration.dropbox != nil, message)
             let dropbox = CloudConfiguration.dropbox!
-            connector = DropboxConnector(appId: dropbox.appId, appSecret: dropbox.appSecret, callbackUrl: dropbox.appSecret)
+            connector = DropboxConnector.init(appId: dropbox.appId, appSecret: dropbox.appSecret, callbackUrl: dropbox.redirectUrl, responseType: "token")
         case .googleDrive:
             assert(CloudConfiguration.googleDrive != nil, message)
             let googledrive = CloudConfiguration.googleDrive!

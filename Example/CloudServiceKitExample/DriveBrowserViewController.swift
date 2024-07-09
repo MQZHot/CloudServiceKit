@@ -108,6 +108,7 @@ extension DriveBrowserViewController {
     
     // You can test more function, eg: add trailing context
     func removeItem(_ item: CloudItem) {
+        
         provider.removeItem(item) { response in
             switch response.result {
             case .success(_):

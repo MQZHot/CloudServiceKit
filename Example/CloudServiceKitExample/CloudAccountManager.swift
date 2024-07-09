@@ -7,6 +7,7 @@
 
 import Foundation
 import KeychainAccess
+import CloudServiceKit
 
 class CloudAccount: Codable, Equatable {
     
@@ -71,6 +72,27 @@ class CloudAccountManager {
             try keychain.set(data, key: key)
         } catch {
             print(error)
+        }
+    }
+}
+
+extension AliyunDriveServiceProvider {
+    /// Get Drive Info
+    /// - Parameter completion: Completion block.
+    func getDriveInfo(completion: @escaping (Result<String, Error>) -> Void) {
+        let url = apiURL.appendingPathComponent("/adrive/v1.0/user/getDriveInfo")
+        post(url: url) { response in
+            switch response.result {
+            case .success(let result):
+                if let json = result.json as? [String: Any], let drive_id = json["default_drive_id"] as? String {
+                    self.driveId = drive_id
+                    completion(.success(drive_id))
+                } else {
+                    completion(.failure(CloudServiceError.responseDecodeError(result)))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
         }
     }
 }
